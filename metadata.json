@@ -1,0 +1,6 @@
+{
+  "name": "Reflex Dodger - Game Ketangkasan & Refleks",
+  "description": "Game ketangkasan seru dengan mekanik menghindari berbagai jenis rintangan dan sistem skor progresif serta pengganda combo.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
