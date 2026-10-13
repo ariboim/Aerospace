@@ -47,17 +47,25 @@ export interface Powerup {
   color: string;
 }
 
+export type ParticleType = 'spark' | 'shard' | 'shockwave' | 'smoke' | 'star' | 'ember';
+
 export interface Particle {
   id: string;
+  type?: ParticleType;
   x: number;
   y: number;
   vx: number;
   vy: number;
   radius: number;
+  initialRadius?: number;
   color: string;
+  secondaryColor?: string;
   alpha: number;
   life: number;
   maxLife: number;
+  drag?: number;
+  rotation?: number;
+  vRot?: number;
 }
 
 export interface FloatingText {

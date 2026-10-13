@@ -95,6 +95,11 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     stageBannerTimer: 0,
     stageBannerText: '',
     directTargetX: null as number | null,
+    isExploding: false,
+    deathTimer: 0,
+    deadMetrics: null as GameMetrics | null,
+    powerupAuraTimer: 0,
+    powerupAuraColor: '#06b6d4',
   });
 
   // Initialize stars once
@@ -200,6 +205,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       const speed = 60 + Math.random() * 160;
       stateRef.current.particles.push({
         id: Math.random().toString(36).substring(2, 8),
+        type: 'spark',
         x,
         y,
         vx: Math.cos(angle) * speed,
@@ -209,6 +215,272 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         alpha: 1,
         life: 0,
         maxLife: 0.35 + Math.random() * 0.3,
+        drag: 0.94,
+      });
+    }
+  }, []);
+
+  // Spectacular Multi-Layer Ship Explosion
+  const triggerShipExplosion = useCallback((x: number, y: number) => {
+    const particles = stateRef.current.particles;
+
+    // 1. Double Expanding Shockwave Rings
+    particles.push(
+      {
+        id: Math.random().toString(36).substring(2, 8),
+        type: 'shockwave',
+        x,
+        y,
+        vx: 320,
+        vy: 0,
+        radius: 12,
+        color: '#ffffff',
+        alpha: 1,
+        life: 0,
+        maxLife: 0.45,
+      },
+      {
+        id: Math.random().toString(36).substring(2, 8),
+        type: 'shockwave',
+        x,
+        y,
+        vx: 210,
+        vy: 0,
+        radius: 8,
+        color: '#f97316',
+        alpha: 0.9,
+        life: 0,
+        maxLife: 0.65,
+      }
+    );
+
+    // 2. Spinning Aircraft Hull Debris & Shards (24 fragments)
+    const hullColors = ['#ffffff', '#06b6d4', '#e2e8f0', '#f43f5e', '#38bdf8'];
+    for (let i = 0; i < 24; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 120 + Math.random() * 260;
+      particles.push({
+        id: Math.random().toString(36).substring(2, 8),
+        type: 'shard',
+        x: x + (Math.random() - 0.5) * 16,
+        y: y + (Math.random() - 0.5) * 16,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        radius: 3.5 + Math.random() * 4,
+        color: hullColors[i % hullColors.length],
+        alpha: 1,
+        life: 0,
+        maxLife: 0.6 + Math.random() * 0.4,
+        drag: 0.94,
+        rotation: Math.random() * Math.PI * 2,
+        vRot: (Math.random() - 0.5) * 16,
+      });
+    }
+
+    // 3. Fiery Flame Embers & Billows (40 particles)
+    const fireColors = ['#ffffff', '#fef08a', '#f59e0b', '#ef4444', '#dc2626', '#b91c1c'];
+    for (let i = 0; i < 40; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 70 + Math.random() * 220;
+      particles.push({
+        id: Math.random().toString(36).substring(2, 8),
+        type: 'ember',
+        x,
+        y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        radius: 3.5 + Math.random() * 4.5,
+        color: fireColors[Math.floor(Math.random() * fireColors.length)],
+        alpha: 1,
+        life: 0,
+        maxLife: 0.45 + Math.random() * 0.35,
+        drag: 0.93,
+      });
+    }
+
+    // 4. High-Velocity Streaking Sparks (32 sparks)
+    for (let i = 0; i < 32; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 180 + Math.random() * 280;
+      particles.push({
+        id: Math.random().toString(36).substring(2, 8),
+        type: 'spark',
+        x,
+        y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        radius: 1.8 + Math.random() * 1.5,
+        color: Math.random() < 0.5 ? '#fef08a' : '#38bdf8',
+        alpha: 1,
+        life: 0,
+        maxLife: 0.35 + Math.random() * 0.25,
+        drag: 0.91,
+      });
+    }
+
+    // 5. Heavy Smoke Puffs (16 smoke particles)
+    for (let i = 0; i < 16; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 30 + Math.random() * 70;
+      particles.push({
+        id: Math.random().toString(36).substring(2, 8),
+        type: 'smoke',
+        x: x + (Math.random() - 0.5) * 12,
+        y: y + (Math.random() - 0.5) * 12,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 20,
+        radius: 6 + Math.random() * 7,
+        color: 'rgba(100, 116, 139, 0.65)',
+        alpha: 0.8,
+        life: 0,
+        maxLife: 0.7 + Math.random() * 0.45,
+        drag: 0.96,
+      });
+    }
+  }, []);
+
+  // Radiant Powerup Collection Impact
+  const triggerPowerupImpact = useCallback((x: number, y: number, color: string) => {
+    const particles = stateRef.current.particles;
+
+    // 1. Expanding Glowing Aura Shockwave
+    particles.push({
+      id: Math.random().toString(36).substring(2, 8),
+      type: 'shockwave',
+      x,
+      y,
+      vx: 240,
+      vy: 0,
+      radius: 8,
+      color,
+      alpha: 1,
+      life: 0,
+      maxLife: 0.42,
+    });
+
+    // 2. Sparkling 4-Point Stars (24 stars)
+    for (let i = 0; i < 24; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 90 + Math.random() * 190;
+      particles.push({
+        id: Math.random().toString(36).substring(2, 8),
+        type: 'star',
+        x,
+        y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        radius: 3 + Math.random() * 3.5,
+        color: i % 2 === 0 ? color : '#ffffff',
+        alpha: 1,
+        life: 0,
+        maxLife: 0.45 + Math.random() * 0.3,
+        drag: 0.93,
+        rotation: Math.random() * Math.PI,
+        vRot: (Math.random() - 0.5) * 10,
+      });
+    }
+
+    // 3. Ascending Energy Motes (16 motes)
+    for (let i = 0; i < 16; i++) {
+      particles.push({
+        id: Math.random().toString(36).substring(2, 8),
+        type: 'ember',
+        x: x + (Math.random() - 0.5) * 24,
+        y: y + (Math.random() - 0.5) * 14,
+        vx: (Math.random() - 0.5) * 45,
+        vy: -(80 + Math.random() * 120),
+        radius: 2 + Math.random() * 2.5,
+        color,
+        alpha: 1,
+        life: 0,
+        maxLife: 0.5 + Math.random() * 0.35,
+        drag: 0.95,
+      });
+    }
+
+    // 4. Bright High-Speed Sparks (14 sparks)
+    for (let i = 0; i < 14; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 140 + Math.random() * 180;
+      particles.push({
+        id: Math.random().toString(36).substring(2, 8),
+        type: 'spark',
+        x,
+        y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        radius: 1.5 + Math.random() * 1.5,
+        color: '#ffffff',
+        alpha: 1,
+        life: 0,
+        maxLife: 0.3 + Math.random() * 0.2,
+        drag: 0.92,
+      });
+    }
+
+    // Ship Aura Flash
+    stateRef.current.powerupAuraTimer = 0.35;
+    stateRef.current.powerupAuraColor = color;
+  }, []);
+
+  // Shield Shatter Crystalline Break
+  const triggerShieldShatter = useCallback((x: number, y: number) => {
+    const particles = stateRef.current.particles;
+
+    // Electric cyan shockwave
+    particles.push({
+      id: Math.random().toString(36).substring(2, 8),
+      type: 'shockwave',
+      x,
+      y,
+      vx: 240,
+      vy: 0,
+      radius: 12,
+      color: '#38bdf8',
+      alpha: 1,
+      life: 0,
+      maxLife: 0.38,
+    });
+
+    // 24 Crystalline Shards
+    for (let i = 0; i < 24; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 130 + Math.random() * 220;
+      particles.push({
+        id: Math.random().toString(36).substring(2, 8),
+        type: 'shard',
+        x,
+        y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        radius: 3 + Math.random() * 3.5,
+        color: i % 2 === 0 ? '#38bdf8' : '#e0f2fe',
+        alpha: 1,
+        life: 0,
+        maxLife: 0.5 + Math.random() * 0.3,
+        drag: 0.93,
+        rotation: Math.random() * Math.PI * 2,
+        vRot: (Math.random() - 0.5) * 12,
+      });
+    }
+
+    // 18 Electric Sparks
+    for (let i = 0; i < 18; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 180 + Math.random() * 240;
+      particles.push({
+        id: Math.random().toString(36).substring(2, 8),
+        type: 'spark',
+        x,
+        y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        radius: 1.5 + Math.random() * 1.5,
+        color: '#bae6fd',
+        alpha: 1,
+        life: 0,
+        maxLife: 0.35 + Math.random() * 0.2,
+        drag: 0.91,
       });
     }
   }, []);
@@ -253,6 +525,10 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     stateRef.current.lastStormMilestone = 0;
     stateRef.current.stageBannerTimer = 0;
     stateRef.current.stageBannerText = '';
+    stateRef.current.isExploding = false;
+    stateRef.current.deathTimer = 0;
+    stateRef.current.deadMetrics = null;
+    stateRef.current.powerupAuraTimer = 0;
 
     const initialMetrics: GameMetrics = {
       score: 0,
@@ -300,6 +576,21 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       if (gameState === 'PLAYING') {
         const { player, obstacles, powerups, particles, floatingTexts, keys, metrics } = stateRef.current;
 
+        // Powerup Aura Timer
+        if (stateRef.current.powerupAuraTimer > 0) {
+          stateRef.current.powerupAuraTimer = Math.max(0, stateRef.current.powerupAuraTimer - dt);
+        }
+
+        // Fatal Explosion sequence in progress
+        if (stateRef.current.isExploding) {
+          stateRef.current.deathTimer -= dt;
+          if (stateRef.current.deathTimer <= 0) {
+            stateRef.current.isExploding = false;
+            onGameOver(stateRef.current.deadMetrics || { ...metrics });
+            return;
+          }
+        }
+
         // Apply Slow-mo factor if active
         const timeFactor = player.slowMoTimer > 0 ? 0.5 : 1.0;
         if (player.slowMoTimer > 0) {
@@ -316,13 +607,15 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           stateRef.current.stageBannerTimer -= dt;
         }
 
-        // Survival Time update & Points
-        metrics.survivalTime += dt;
-        stateRef.current.survivalScoreTimer += dt;
-        if (stateRef.current.survivalScoreTimer >= 0.2) {
-          stateRef.current.survivalScoreTimer = 0;
-          const pointsEarned = Math.round(5 * metrics.level * metrics.multiplier);
-          metrics.score += pointsEarned;
+        // Survival Time update & Points (only if not exploding)
+        if (!stateRef.current.isExploding) {
+          metrics.survivalTime += dt;
+          stateRef.current.survivalScoreTimer += dt;
+          if (stateRef.current.survivalScoreTimer >= 0.2) {
+            stateRef.current.survivalScoreTimer = 0;
+            const pointsEarned = Math.round(5 * metrics.level * metrics.multiplier);
+            metrics.score += pointsEarned;
+          }
         }
 
         // Dynamic Continuous Difficulty Calculation
@@ -549,7 +842,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           const distance = Math.hypot(distX, distY);
 
           // Fatal Collision Check
-          if (distance < playerRadius) {
+          if (!stateRef.current.isExploding && distance < playerRadius) {
             if (player.isDashing) {
               triggerParticles(closestX, closestY, '#06b6d4', 8);
             } else if (player.hasShield) {
@@ -557,22 +850,26 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
               sounds.playShieldBreak();
               metrics.comboStreak = 0;
               metrics.multiplier = 1.0;
-              stateRef.current.shakeIntensity = settings.screenShake ? 9 : 0;
-              addFloatingText('PERISAI PECAH!', player.x, player.y - 20, '#f43f5e');
-              triggerParticles(player.x, player.y, '#06b6d4', 24);
+              stateRef.current.shakeIntensity = settings.screenShake ? 11 : 0;
+              addFloatingText('PERISAI PECAH!', player.x, player.y - 20, '#38bdf8');
+              triggerShieldShatter(player.x, player.y);
               obstacles.splice(i, 1);
               continue;
             } else {
               sounds.playGameOver();
-              stateRef.current.shakeIntensity = settings.screenShake ? 14 : 0;
-              triggerParticles(player.x, player.y, '#f43f5e', 35);
-              onGameOver({ ...metrics });
-              return;
+              stateRef.current.isExploding = true;
+              stateRef.current.deathTimer = 0.65;
+              stateRef.current.deadMetrics = { ...metrics };
+              stateRef.current.shakeIntensity = settings.screenShake ? 24 : 0;
+              triggerShipExplosion(player.x, player.y);
+              addFloatingText('HANCUR!', player.x, player.y - 30, '#f43f5e');
+              break;
             }
           }
 
           // Near-Miss ("Refleks Nyaris") Detection
           if (
+            !stateRef.current.isExploding &&
             !obs.nearMissAwarded &&
             distance <= playerRadius + NEAR_MISS_THRESHOLD &&
             distance >= playerRadius &&
@@ -590,9 +887,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
             metrics.score += bonusPoints;
 
             sounds.playNearMiss();
-            if (settings.screenShake) stateRef.current.shakeIntensity = 2.5;
+            if (settings.screenShake) stateRef.current.shakeIntensity = 3.5;
             addFloatingText(`+${bonusPoints} NYARIS! (${metrics.multiplier.toFixed(1)}x)`, player.x, player.y - 32, '#fbbf24');
-            triggerParticles(closestX, closestY, '#fbbf24', 10);
+            triggerParticles(closestX, closestY, '#fbbf24', 12);
           }
 
           // Remove cleared obstacles
@@ -611,27 +908,26 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           p.y += p.speedY * dt * timeFactor;
 
           const dist = Math.hypot(player.x - p.x, player.y - p.y);
-          if (dist < player.width / 2 + p.radius) {
+          if (!stateRef.current.isExploding && dist < player.width / 2 + p.radius) {
             sounds.playPickup(p.type);
             metrics.powerupsCollected += 1;
             const points = Math.round(100 * metrics.multiplier);
             metrics.score += points;
 
+            // Trigger Visual Explosion & Radiant Star Impact
+            triggerPowerupImpact(p.x, p.y, p.color);
+
             if (p.type === 'SHIELD') {
               player.hasShield = true;
               addFloatingText(`+${points} PERISAI AKTIF!`, player.x, player.y - 25, '#06b6d4');
-              triggerParticles(player.x, player.y, '#06b6d4', 18);
             } else if (p.type === 'SLOW_MO') {
               player.slowMoTimer = 4.0;
               addFloatingText(`+${points} PERLAMBAT WAKTU!`, player.x, player.y - 25, '#fbbf24');
-              triggerParticles(player.x, player.y, '#fbbf24', 18);
             } else if (p.type === 'DASH_RECHARGE') {
               player.dashTimer = 0;
               addFloatingText(`+${points} REFLEKS KILAT SIAP!`, player.x, player.y - 25, '#10b981');
-              triggerParticles(player.x, player.y, '#10b981', 18);
             } else {
               addFloatingText(`+${points} ENERGI REKOR!`, player.x, player.y - 25, '#38bdf8');
-              triggerParticles(player.x, player.y, '#38bdf8', 18);
             }
 
             powerups.splice(i, 1);
@@ -643,31 +939,6 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           }
         }
 
-        // Update Particles
-        for (let i = particles.length - 1; i >= 0; i--) {
-          const pt = particles[i];
-          pt.life += dt;
-          pt.x += pt.vx * dt;
-          pt.y += pt.vy * dt;
-          pt.alpha = Math.max(0, 1 - pt.life / pt.maxLife);
-
-          if (pt.life >= pt.maxLife) {
-            particles.splice(i, 1);
-          }
-        }
-
-        // Update Floating Texts
-        for (let i = floatingTexts.length - 1; i >= 0; i--) {
-          const ft = floatingTexts[i];
-          ft.life += dt;
-          ft.y -= 45 * dt;
-          ft.alpha = Math.max(0, 1 - ft.life / 0.85);
-
-          if (ft.life >= 0.85) {
-            floatingTexts.splice(i, 1);
-          }
-        }
-
         // Synchronize React HUD state (throttled to 10Hz to prevent React render queue saturation)
         stateRef.current.hudSyncTimer += dt;
         if (stateRef.current.hudSyncTimer >= 0.1) {
@@ -676,6 +947,49 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
             ...metrics,
             highScore: Math.max(prev.highScore, metrics.score),
           }));
+        }
+      }
+
+      // Always update Particles (in PLAYING or GAME_OVER so explosions animate smoothly)
+      for (let i = stateRef.current.particles.length - 1; i >= 0; i--) {
+        const pt = stateRef.current.particles[i];
+        pt.life += dt;
+
+        if (pt.drag) {
+          const dragFactor = Math.pow(pt.drag, dt * 60);
+          pt.vx *= dragFactor;
+          pt.vy *= dragFactor;
+        }
+
+        pt.x += pt.vx * dt;
+        pt.y += pt.vy * dt;
+
+        if (pt.vRot) {
+          pt.rotation = (pt.rotation || 0) + pt.vRot * dt;
+        }
+
+        if (pt.type === 'shockwave') {
+          pt.radius += (pt.vx || 240) * dt;
+        } else if (pt.type === 'smoke') {
+          pt.radius += 8 * dt;
+        }
+
+        pt.alpha = Math.max(0, 1 - pt.life / pt.maxLife);
+
+        if (pt.life >= pt.maxLife) {
+          stateRef.current.particles.splice(i, 1);
+        }
+      }
+
+      // Always update Floating Texts
+      for (let i = stateRef.current.floatingTexts.length - 1; i >= 0; i--) {
+        const ft = stateRef.current.floatingTexts[i];
+        ft.life += dt;
+        ft.y -= 45 * dt;
+        ft.alpha = Math.max(0, 1 - ft.life / 0.85);
+
+        if (ft.life >= 0.85) {
+          stateRef.current.floatingTexts.splice(i, 1);
         }
       }
 
@@ -800,70 +1114,139 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         ctx.restore();
       });
 
-      // Draw Particles
+      // Draw Particles with Dedicated Visual Types
       stateRef.current.particles.forEach((pt) => {
         ctx.save();
-        ctx.globalAlpha = pt.alpha;
-        ctx.fillStyle = pt.color;
-        ctx.shadowColor = pt.color;
-        ctx.shadowBlur = 6;
-        ctx.beginPath();
-        ctx.arc(pt.x, pt.y, pt.radius, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.globalAlpha = Math.max(0, Math.min(1, pt.alpha));
+
+        if (pt.type === 'shockwave') {
+          ctx.strokeStyle = pt.color;
+          ctx.lineWidth = Math.max(1, (1 - pt.life / pt.maxLife) * 4.5);
+          ctx.shadowColor = pt.color;
+          ctx.shadowBlur = 14;
+          ctx.beginPath();
+          ctx.arc(pt.x, pt.y, Math.max(1, pt.radius), 0, Math.PI * 2);
+          ctx.stroke();
+        } else if (pt.type === 'spark') {
+          ctx.strokeStyle = pt.color;
+          ctx.lineWidth = Math.max(1.2, pt.radius);
+          ctx.shadowColor = pt.color;
+          ctx.shadowBlur = 8;
+          ctx.beginPath();
+          ctx.moveTo(pt.x, pt.y);
+          ctx.lineTo(pt.x - pt.vx * 0.035, pt.y - pt.vy * 0.035);
+          ctx.stroke();
+        } else if (pt.type === 'shard') {
+          ctx.translate(pt.x, pt.y);
+          ctx.rotate(pt.rotation || 0);
+          ctx.fillStyle = pt.color;
+          ctx.shadowColor = pt.color;
+          ctx.shadowBlur = 6;
+          ctx.beginPath();
+          ctx.moveTo(0, -pt.radius);
+          ctx.lineTo(pt.radius * 0.8, pt.radius * 0.8);
+          ctx.lineTo(-pt.radius * 0.8, pt.radius * 0.5);
+          ctx.closePath();
+          ctx.fill();
+        } else if (pt.type === 'star') {
+          ctx.translate(pt.x, pt.y);
+          ctx.rotate(pt.rotation || 0);
+          ctx.fillStyle = pt.color;
+          ctx.shadowColor = pt.color;
+          ctx.shadowBlur = 10;
+          const r = pt.radius;
+          ctx.beginPath();
+          ctx.moveTo(0, -r);
+          ctx.quadraticCurveTo(0, 0, r, 0);
+          ctx.quadraticCurveTo(0, 0, 0, r);
+          ctx.quadraticCurveTo(0, 0, -r, 0);
+          ctx.quadraticCurveTo(0, 0, 0, -r);
+          ctx.fill();
+        } else if (pt.type === 'smoke') {
+          ctx.fillStyle = pt.color;
+          ctx.beginPath();
+          ctx.arc(pt.x, pt.y, Math.max(1, pt.radius), 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          // Default / Ember
+          ctx.fillStyle = pt.color;
+          ctx.shadowColor = pt.color;
+          ctx.shadowBlur = 8;
+          ctx.beginPath();
+          ctx.arc(pt.x, pt.y, Math.max(0.5, pt.radius), 0, Math.PI * 2);
+          ctx.fill();
+        }
+
         ctx.restore();
       });
 
-      // Draw Player Craft
+      // Draw Player Craft (only if not blown up in explosion)
       const player = stateRef.current.player;
-      ctx.save();
-      ctx.translate(player.x, player.y);
+      if (!stateRef.current.isExploding) {
+        ctx.save();
+        ctx.translate(player.x, player.y);
 
-      if (player.isDashing) {
-        ctx.strokeStyle = '#06b6d4';
-        ctx.lineWidth = 3;
-        ctx.shadowColor = '#06b6d4';
-        ctx.shadowBlur = 20;
-        ctx.beginPath();
-        ctx.arc(0, 0, player.width * 0.75, 0, Math.PI * 2);
-        ctx.stroke();
-      }
+        // Powerup Collection Aura Pulse Halo
+        if (stateRef.current.powerupAuraTimer > 0) {
+          const auraAlpha = Math.min(1, stateRef.current.powerupAuraTimer / 0.35);
+          ctx.strokeStyle = stateRef.current.powerupAuraColor;
+          ctx.lineWidth = 3;
+          ctx.globalAlpha = auraAlpha * 0.85;
+          ctx.shadowColor = stateRef.current.powerupAuraColor;
+          ctx.shadowBlur = 18;
+          ctx.beginPath();
+          ctx.arc(0, 0, player.width * 0.88, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.globalAlpha = 1.0;
+        }
 
-      if (player.hasShield) {
-        ctx.strokeStyle = '#38bdf8';
-        ctx.lineWidth = 2.5;
-        ctx.shadowColor = '#38bdf8';
-        ctx.shadowBlur = 15;
-        ctx.beginPath();
-        ctx.arc(0, 0, player.width * 0.8, 0, Math.PI * 2);
-        ctx.stroke();
+        if (player.isDashing) {
+          ctx.strokeStyle = '#06b6d4';
+          ctx.lineWidth = 3;
+          ctx.shadowColor = '#06b6d4';
+          ctx.shadowBlur = 20;
+          ctx.beginPath();
+          ctx.arc(0, 0, player.width * 0.75, 0, Math.PI * 2);
+          ctx.stroke();
+        }
 
-        ctx.fillStyle = 'rgba(56, 189, 248, 0.12)';
+        if (player.hasShield) {
+          ctx.strokeStyle = '#38bdf8';
+          ctx.lineWidth = 2.5;
+          ctx.shadowColor = '#38bdf8';
+          ctx.shadowBlur = 15;
+          ctx.beginPath();
+          ctx.arc(0, 0, player.width * 0.8, 0, Math.PI * 2);
+          ctx.stroke();
+
+          ctx.fillStyle = 'rgba(56, 189, 248, 0.12)';
+          ctx.beginPath();
+          ctx.arc(0, 0, player.width * 0.8, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Aerodynamic Craft Hull
+        ctx.shadowColor = player.isDashing ? '#06b6d4' : '#38bdf8';
+        ctx.shadowBlur = 12;
+
+        ctx.fillStyle = '#f8fafc';
         ctx.beginPath();
-        ctx.arc(0, 0, player.width * 0.8, 0, Math.PI * 2);
+        ctx.moveTo(0, -player.height * 0.55);
+        ctx.lineTo(player.width * 0.5, player.height * 0.45);
+        ctx.lineTo(player.width * 0.2, player.height * 0.25);
+        ctx.lineTo(0, player.height * 0.35);
+        ctx.lineTo(-player.width * 0.2, player.height * 0.25);
+        ctx.lineTo(-player.width * 0.5, player.height * 0.45);
+        ctx.closePath();
         ctx.fill();
+
+        ctx.fillStyle = player.isDashing ? '#06b6d4' : '#0ea5e9';
+        ctx.beginPath();
+        ctx.ellipse(0, -player.height * 0.12, 4, 8, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.restore();
       }
-
-      // Aerodynamic Craft
-      ctx.shadowColor = player.isDashing ? '#06b6d4' : '#38bdf8';
-      ctx.shadowBlur = 12;
-
-      ctx.fillStyle = '#f8fafc';
-      ctx.beginPath();
-      ctx.moveTo(0, -player.height * 0.55);
-      ctx.lineTo(player.width * 0.5, player.height * 0.45);
-      ctx.lineTo(player.width * 0.2, player.height * 0.25);
-      ctx.lineTo(0, player.height * 0.35);
-      ctx.lineTo(-player.width * 0.2, player.height * 0.25);
-      ctx.lineTo(-player.width * 0.5, player.height * 0.45);
-      ctx.closePath();
-      ctx.fill();
-
-      ctx.fillStyle = player.isDashing ? '#06b6d4' : '#0ea5e9';
-      ctx.beginPath();
-      ctx.ellipse(0, -player.height * 0.12, 4, 8, 0, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.restore();
 
       // Draw Floating Pop Texts
       stateRef.current.floatingTexts.forEach((ft) => {
@@ -909,7 +1292,19 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     return () => {
       cancelAnimationFrame(animationFrameId);
     };
-  }, [gameState, settings.sensitivity, settings.screenShake, onGameOver, onUpdateMetrics, spawnPowerup, addFloatingText, triggerParticles]);
+  }, [
+    gameState,
+    settings.sensitivity,
+    settings.screenShake,
+    onGameOver,
+    onUpdateMetrics,
+    spawnPowerup,
+    addFloatingText,
+    triggerParticles,
+    triggerShipExplosion,
+    triggerPowerupImpact,
+    triggerShieldShatter,
+  ]);
 
   return (
     <div className="relative w-full max-w-[580px] mx-auto aspect-[580/720] rounded-xl overflow-hidden shadow-2xl border border-slate-800 bg-[#090d16]">
