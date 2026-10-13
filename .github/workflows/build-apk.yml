@@ -28,26 +28,21 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
 
       - name: Install Node Dependencies
-        run: npm ci --legacy-peer-deps || npm install --legacy-peer-deps
+        run: npm install --legacy-peer-deps
 
       - name: Build Web Application
         run: npm run build
 
       - name: Sync Capacitor Android
-        run: |
-          if [ ! -d "android" ]; then
-            npx cap add android
-          fi
-          npx cap sync android
+        run: npx cap sync android
 
       - name: Build Android Debug APK
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon --stacktrace
+          ./gradlew assembleDebug --no-daemon
 
       - name: Prepare APK Distribution
         run: |
@@ -55,8 +50,6 @@ jobs:
           cp android/app/build/outputs/apk/debug/app-debug.apk apk-distribution/app-debug.apk
           cd apk-distribution
           sha256sum app-debug.apk > app-debug.apk.sha256
-          echo "APK_SIZE=$(wc -c < app-debug.apk | tr -d ' ')" >> $GITHUB_ENV
-          echo "APK_SHA=$(sha256sum app-debug.apk | awk '{print $1}')" >> $GITHUB_ENV
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
@@ -70,32 +63,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG_NAME="v1.0.${{ github.run_number }}"
-          RELEASE_TITLE="AEROSPACE v1.0.${{ github.run_number }} (Android APK)"
-          
-          cat << 'EOF' > release_notes.md
-          ## 🚀 AEROSPACE - Android APK Release
-          
-          APK Android siap diinstal untuk smartphone atau tablet Android Anda!
-          
-          ### 📥 Download Link:
-          👉 [Download app-debug.apk](https://github.com/${{ github.repository }}/releases/latest/download/app-debug.apk)
-          
-          ---
-          ### 📱 Cara Install di Android:
-          1. Klik link unduh app-debug.apk di atas lewat browser HP Anda.
-          2. Setelah selesai, buka file yang terunduh.
-          3. Jika muncul dialog keamanan, klik Setelan dan aktifkan Izinkan dari sumber ini.
-          4. Ketuk Instal dan mainkan game!
-          EOF
-          
           gh release create "$TAG_NAME" apk-distribution/app-debug.apk apk-distribution/app-debug.apk.sha256 \
-            --title "$RELEASE_TITLE" \
-            --notes-file release_notes.md \
+            --title "AEROSPACE Release $TAG_NAME" \
+            --notes "Unduh langsung file APK Android game AEROSPACE siap pakai." \
             --latest
-
-      - name: Generate Summary
-        run: |
-          echo "### 🚀 APK Android Berhasil Dibuat!" >> $GITHUB_STEP_SUMMARY
-          echo "- **Game:** AEROSPACE" >> $GITHUB_STEP_SUMMARY
-          echo "- **Release Tag:** \`v1.0.${{ github.run_number }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Direct Download:** [Download app-debug.apk](https://github.com/${{ github.repository }}/releases/latest/download/app-debug.apk)" >> $GITHUB_STEP_SUMMARY
